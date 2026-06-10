@@ -1,0 +1,47 @@
+Package: rvarsim
+Title: R/Bioconductor Variant Simulator with HGVS Notation
+Version: 0.99.1
+Authors@R: person("Liu", "Sun",
+           email = "sunliu@yxnu.edu.cn",
+           role = c("aut", "cre"),
+           comment = c(ORCID = "0000-0002-1459-9478"))
+Description: Simulates all possible single nucleotide variants (SNVs)
+    across MANE Select transcripts including coding sequence (CDS),
+    untranslated regions (UTRs), and canonical splice sites. Outputs
+    variants in HGVS notation. Provides a comprehensive HGVS toolkit:
+    parsing, syntactic and semantic validation, normalization (3'
+    shifting, common affix trimming), format conversion (HGVS <-> VCF
+    <-> SPDI), transcription mapping (genomic <-> coding), translation
+    to protein consequence, backtranslation from protein to coding
+    variants, variant extraction from sequence alignment, and liftover
+    between genome assemblies.
+License: MIT + file LICENSE
+URL: https://github.com/liu-sun/rvarsim
+BugReports: https://github.com/liu-sun/rvarsim/issues
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+Imports:
+    BiocGenerics,
+    GenomeInfoDb,
+    GenomicFeatures,
+    GenomicRanges,
+    IRanges,
+    S4Vectors,
+    Biostrings,
+    BSgenome,
+    ensembldb
+Suggests:
+    AnnotationHub,
+    BSgenome.Hsapiens.UCSC.hg38,
+    EnsDb.Hsapiens.v86,
+    VariantAnnotation,
+    rtracklayer,
+    BiocStyle,
+    testthat (>= 3.0.0),
+    knitr,
+    rmarkdown
+Config/testthat/edition: 3
+VignetteBuilder: knitr
+biocViews: Genetics, VariantAnnotation, SNP, Sequencing,
+    Transcription, VariantDetection, Alignment, Normalization
+Config/roxygen2/version: 8.0.0

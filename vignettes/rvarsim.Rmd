@@ -1,0 +1,119 @@
+---
+title: "rvarsim: Variant Simulation with HGVS Notation"
+author: "Liu Sun"
+date: "`r Sys.Date()`"
+output: BiocStyle::html_document
+vignette: >
+  %\VignetteIndexEntry{rvarsim: Variant Simulation}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+## Introduction
+
+`rvarsim` simulates all possible single nucleotide variants (SNVs)
+across MANE Select transcripts and outputs them in HGVS notation.
+It also provides a comprehensive toolkit for parsing, validating,
+normalizing, converting, transcribing, translating, and lifting
+over HGVS variant descriptions.
+
+## Variant Simulation Pipeline
+
+The four-step pipeline generates all possible SNVs from a reference
+transcript:
+
+```{r simulate, eval=FALSE}
+library(rvarsim)
+library(EnsDb.Hsapiens.v86)
+library(BSgenome.Hsapiens.UCSC.hg38)
+
+# Fetch MANE Select transcripts
+mane <- fetch_mane_txdb(EnsDb.Hsapiens.v86)
+
+# Get transcript structure
+struct <- get_transcript_structure(mane, "ENST00000357654")
+
+# Generate variants
+vars <- generate_variants(struct, BSgenome.Hsapiens.UCSC.hg38)
+
+# Add HGVS notation
+hgvs <- format_hgvs(vars)
+head(hgvs[, c("region", "genomic_ref", "genomic_alt", "hgvs_c")])
+```
+
+Or use the all-in-one wrapper:
+
+```{r wrapper, eval=FALSE}
+result <- simulate_variants(
+    txdb     = EnsDb.Hsapiens.v86,
+    bsgenome = BSgenome.Hsapiens.UCSC.hg38,
+    transcript_ids = "ENST00000357654",
+    regions  = c("cds", "splice_site")
+)
+```
+
+## HGVS Parsing and Validation
+
+```{r parse}
+library(rvarsim)
+# Parse HGVS strings into structured objects
+variant <- parse_hgvs("NM_000546.6:c.215C>G")[[1]]
+variant$type        # "substitution"
+variant$reference   # "C"
+variant$alternate   # "G"
+variant$position$start  # 215
+
+# Validate
+is_valid_hgvs("NM_000546.6:c.215C>G")  # TRUE
+is_valid_hgvs("garbage string")        # FALSE
+```
+
+## Format Conversion
+
+```{r convert}
+# HGVS to VCF
+vcf <- hgvs_to_vcf("NC_000001.11:g.123456A>G")
+print(vcf)
+
+# SPDI conversion
+cat(hgvs_to_spdi("NC_000001.11:g.123456A>G"), "\n")
+```
+
+## Transcription Mapping
+
+```{r transcribe, eval=FALSE}
+# Coding to genomic
+g_vars <- c_to_g("ENST00000357654:c.215C>G",
+                 EnsDb.Hsapiens.v86,
+                 BSgenome.Hsapiens.UCSC.hg38)
+
+# Genomic to coding
+c_vars <- g_to_c("1:g.7577120C>G",
+                 EnsDb.Hsapiens.v86,
+                 BSgenome.Hsapiens.UCSC.hg38)
+```
+
+## Translation
+
+```{r translate, eval=FALSE}
+translate_hgvs("ENST00000357654:c.215C>G",
+               EnsDb.Hsapiens.v86,
+               BSgenome.Hsapiens.UCSC.hg38)
+```
+
+## Variant Extraction
+
+```{r extract}
+extract_hgvs("ATGCGTACGTAG", "ATGCATACCTAG",
+             "NM_000546.6", "c", 1)
+```
+
+## Session Information
+
+```{r sessionInfo}
+sessionInfo()
+```
