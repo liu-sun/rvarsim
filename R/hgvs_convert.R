@@ -182,8 +182,8 @@ vcf_to_hgvs <- function(vcf_df, assembly = "GRCh38") {
 
 #' Convert HGVS to SPDI format
 #'
-#' SPDI uses 0-based interbase coordinates:
-#' seqid:position:deletion:insertion
+#' SPDI (Sequence Position Deletion Insertion) uses 0-based interbase
+#' coordinates: seqid:position:deletion:insertion
 #'
 #' @param hgvs_strings Character vector of HGVS g. notation strings.
 #' @param assembly Genome assembly name.

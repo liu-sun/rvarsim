@@ -1,6 +1,7 @@
 #' Parse HGVS variant descriptions
 #'
-#' Parses HGVS-formatted variant strings into structured R list objects.
+#' Parses HGVS (Human Genome Variation Society)-formatted variant
+#' strings into structured R list objects.
 #' Supports all major HGVS notation types: substitution (>), deletion
 #' (del), insertion (ins), duplication (dup), inversion (inv), deletion-
 #' insertion (delins), repeat, and frameshift variants across c., g., p.,

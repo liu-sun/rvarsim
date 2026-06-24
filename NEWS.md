@@ -1,3 +1,21 @@
+# rvarsim 1.0.0
+
+* Bioconductor release addressing full review feedback
+* Vignette rewrite: motivation, package comparison table, terminology
+  definitions (MANE, HGVS, SPDI), Bioconductor installation instructions,
+  interoperability section, evaluated chunks, references
+* Fixed DESCRIPTION: removed "R/Bioconductor" from Title, matched LICENSE
+  (MIT) with DESCRIPTION, added SequenceMatching biocView
+* Fixed fetch_mane.R: deprecated TxidFilter → TxIdFilter, removed
+  hardcoded tx_support_level column, NULL-guarded filter construction
+* Fixed hgvs_extract.R sprintf format mismatch (5 fields, 4 args)
+* Removed redundant requireNamespace(BSgenome) — already in Imports
+* Moved GenomicRanges from Imports to Depends
+* Refactored switch() statements to reduce repeated argument passing
+* Added acronym expansions (MANE, HGVS, SPDI) in function documentation
+* Added 30+ new tests (normalization, alignment, conversion edge cases,
+  format_hgvs integration, parse edge cases, protein parser, validation)
+
 # rvarsim 0.99.1
 
 * Resubmission addressing Bioconductor review feedback

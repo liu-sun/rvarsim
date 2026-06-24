@@ -1,6 +1,6 @@
 Package: rvarsim
-Title: R/Bioconductor Variant Simulator with HGVS Notation
-Version: 0.99.1
+Title: Variant Simulator with HGVS Notation
+Version: 1.0.0
 Authors@R: person("Liu", "Sun",
            email = "sunliu@yxnu.edu.cn",
            role = c("aut", "cre"),
@@ -20,11 +20,12 @@ URL: https://github.com/liu-sun/rvarsim
 BugReports: https://github.com/liu-sun/rvarsim/issues
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
+Depends:
+    GenomicRanges
 Imports:
     BiocGenerics,
     GenomeInfoDb,
     GenomicFeatures,
-    GenomicRanges,
     IRanges,
     S4Vectors,
     Biostrings,
@@ -43,5 +44,6 @@ Suggests:
 Config/testthat/edition: 3
 VignetteBuilder: knitr
 biocViews: Genetics, VariantAnnotation, SNP, Sequencing,
-    Transcription, VariantDetection, Alignment, Normalization
+    Transcription, VariantDetection, Alignment, Normalization,
+    SequenceMatching
 Config/roxygen2/version: 8.0.0

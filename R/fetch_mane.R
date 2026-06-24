@@ -1,6 +1,7 @@
 #' Fetch MANE Select transcripts
 #'
-#' Retrieves MANE Select transcripts using AnnotationHub and ensembldb.
+#' Retrieves MANE (Matched Annotation from NCBI and EMBL-EBI) Select
+#' transcripts using AnnotationHub and ensembldb.
 #' MANE Select transcripts are a single representative transcript per
 #' protein-coding gene, jointly curated by NCBI and EMBL-EBI.
 #'
@@ -16,7 +17,6 @@
 #'   possible.
 #'
 #' @importFrom ensembldb transcripts filter
-#' @importFrom GenomicFeatures isActiveSeq
 #' @export
 #'
 #' @examples
@@ -85,15 +85,15 @@ fetch_mane_txdb <- function(txdb = NULL, ah_id = NULL,
     # a transcript tag. We try both approaches.
 
     # Approach 1: filter by MANE Select tag
-    tx_filter <- ensembldb::TxidFilter(
-        .get_mane_tx_ids(txdb)
-    )
+    mane_ids <- .get_mane_tx_ids(txdb)
 
-    if (is.null(tx_filter)) {
+    if (is.null(mane_ids) || length(mane_ids) == 0) {
         warning("Could not identify MANE Select transcripts. ",
                 "Returning all transcripts.")
         return(txdb)
     }
+
+    tx_filter <- ensembldb::TxIdFilter(mane_ids)
 
     n_before <- length(ensembldb::transcripts(txdb))
     txdb_filtered <- ensembldb::filter(txdb, tx_filter)
@@ -107,11 +107,16 @@ fetch_mane_txdb <- function(txdb = NULL, ah_id = NULL,
 
 #' @keywords internal
 .get_mane_tx_ids <- function(txdb) {
-    # Try known columns for MANE Select tags
+    # Query available columns to avoid errors on missing columns
+    avail_cols <- names(ensembldb::listColumns(txdb))
+    req_cols <- c("tx_id", "tx_biotype", "gene_name")
+    opt_cols <- c("tx_support_level", "uniprot_id",
+                   "tx_external_name")
+    cols <- c(req_cols, intersect(opt_cols, avail_cols))
+
     all_tx <- ensembldb::transcripts(
         txdb,
-        columns = c("tx_id", "tx_biotype", "tx_support_level",
-                    "gene_name", "uniprot_id")
+        columns = cols
     )
 
     mane_ids <- character(0)

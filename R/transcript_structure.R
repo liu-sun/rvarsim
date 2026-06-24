@@ -26,7 +26,6 @@
 #' }
 #'
 #' @importFrom GenomicFeatures cdsBy fiveUTRsByTranscript threeUTRsByTranscript exonsBy isActiveSeq
-#' @importFrom GenomicRanges GRanges GRangesList reduce start end strand width resize flank
 #' @importFrom IRanges IRanges subsetByOverlaps
 #' @importFrom S4Vectors metadata mcols
 #' @export
@@ -42,7 +41,7 @@ get_transcript_structure <- function(txdb, transcript_ids = NULL) {
     # If transcript_ids provided, restrict the TxDb
     if (!is.null(transcript_ids)) {
         if (inherits(txdb, "EnsDb")) {
-            tx_filter <- ensembldb::TxidFilter(transcript_ids)
+            tx_filter <- ensembldb::TxIdFilter(transcript_ids)
             txdb <- ensembldb::filter(txdb, tx_filter)
         } else {
             # For TxDb, use isActiveSeq mechanism

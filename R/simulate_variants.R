@@ -1,9 +1,10 @@
 #' Simulate all possible SNVs for MANE Select transcripts
 #'
 #' Main entry point for the variant simulation pipeline. Fetches
-#' MANE Select transcripts, extracts transcript structure, generates
-#' all possible single nucleotide variants across CDS, UTR, and
-#' canonical splice site regions, and formats them in HGVS notation.
+#' MANE (Matched Annotation from NCBI and EMBL-EBI) Select
+#' transcripts, extracts transcript structure, generates all possible
+#' single nucleotide variants (SNVs) across CDS, UTR, and canonical
+#' splice site regions, and formats them in HGVS notation.
 #'
 #' @param txdb An \code{EnsDb} or \code{TxDb} object. If \code{NULL},
 #'   fetches from AnnotationHub (requires internet).

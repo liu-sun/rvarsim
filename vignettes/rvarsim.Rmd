@@ -15,37 +15,225 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 
 ## Introduction
 
-`rvarsim` simulates all possible single nucleotide variants (SNVs)
-across MANE Select transcripts and outputs them in HGVS notation.
-It also provides a comprehensive toolkit for parsing, validating,
-normalizing, converting, transcribing, translating, and lifting
-over HGVS variant descriptions.
+### Motivation
 
-## Variant Simulation Pipeline
+Variant interpretation workflows frequently require converting,
+validating, and simulating genetic variants across different
+representation formats. While Bioconductor provides excellent
+infrastructure for working with genomic ranges (*GenomicRanges*,
+*GenomicFeatures*) and variant annotation (*VariantAnnotation*,
+*ensemblVEP*), no existing Bioconductor package offers a unified
+toolkit for **HGVS (Human Genome Variation Society)** nomenclature
+operations.
 
-The four-step pipeline generates all possible SNVs from a reference
-transcript:
+`rvarsim` fills this gap by providing:
+
+- **Variant simulation**: exhaustive generation of all possible
+  single nucleotide variants across **MANE** (Matched Annotation
+  from NCBI and EMBL-EBI) Select transcripts — the jointly curated,
+  one-transcript-per-gene reference set;
+- **HGVS parsing and validation**: decomposing HGVS strings (e.g.,
+  `NM_000546.6:c.215C>G`) into structured R objects;
+- **Format conversion**: bidirectional mapping between HGVS, VCF,
+  and **SPDI** (Sequence Position Deletion Insertion, NCBI's 0-based
+  interbase format);
+- **Transcription mapping**: converting between genomic (`g.`) and
+  coding (`c.`) coordinates via transcript annotation;
+- **Translation and backtranslation**: inferring protein consequences
+  from coding variants, and enumerating possible coding variants
+  from observed amino acid changes.
+
+### Comparison with existing tools
+
+| Feature | VariantAnnotation | ensemblVEP | rvarsim |
+|---|---|---|---|
+| HGVS parsing into R objects | Limited | No | Yes |
+| HGVS validation | No | No | Yes |
+| Exhaustive SNV simulation | No | No | Yes |
+| HGVS ↔ VCF ↔ SPDI conversion | VCF only | VCF only | Yes |
+| c. ↔ g. coordinate mapping | Partial | No | Yes |
+| Translation to p. notation | No | Limited | Yes |
+| Backtranslation (p. → c.) | No | No | Yes |
+| Variant extraction from alignment | No | No | Yes |
+| Assembly liftover | Via *rtracklayer* | No | Yes |
+
+### Terminology
+
+- **MANE Select**: Matched Annotation from NCBI and EMBL-EBI. A
+  jointly curated set of one representative transcript per
+  protein-coding gene. MANE Select transcripts are identified by
+  RefSeq `NM_` accessions and serve as the standard reference for
+  clinical variant reporting.
+- **HGVS**: Human Genome Variation Society nomenclature. A
+  standardized system for describing sequence variants using
+  reference sequences and coordinate systems. Coding DNA notation
+  uses `c.` prefix (e.g., `c.215C>G`), genomic uses `g.`, and
+  protein uses `p.`.
+- **SPDI**: Sequence Position Deletion Insertion. NCBI's variation
+  representation using 0-based interbase coordinates (e.g.,
+  `NC_000001.11:123455:A:G`). More computationally tractable than
+  HGVS for   database storage and comparison.
+
+## Installation
+
+`rvarsim` is a Bioconductor package. Install it with
+*BiocManager*:
+
+```{r install, eval=FALSE}
+if (!require("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+BiocManager::install("rvarsim")
+```
+
+Load the package:
+
+```{r load-pkg}
+library(rvarsim)
+```
+
+## Parsing and Validating HGVS Variants
+
+HGVS strings encode variant positions, reference alleles, and
+alternate alleles in a compact but complex grammar. `parse_hgvs()`
+decomposes an HGVS string into a structured R list with named
+components for programmatic access. This is useful when reading
+variants from clinical reports, databases like ClinVar, or
+user-provided input.
+
+The code chunk below parses several HGVS variants representing
+different regions (CDS, UTR, intronic), validates them, and
+inspects their parsed structure.
+
+```{r parse}
+# Substitution in coding sequence
+cds <- parse_hgvs("NM_000546.6:c.215C>G")[[1]]
+cds$type          # "substitution"
+cds$reference     # "C"
+cds$alternate     # "G"
+cds$position$start # 215
+
+# 5' UTR and 3' UTR positions
+five_utr <- parse_hgvs("NM_000314.8:c.-14G>A")[[1]]
+three_utr <- parse_hgvs("NM_001126114.2:c.*32T>C")[[1]]
+five_utr$position$is_five_utr   # TRUE
+three_utr$position$is_three_utr # TRUE
+
+# Intronic splice donor and acceptor
+donor <- parse_hgvs("NM_000546.6:c.453+1G>T")[[1]]
+acceptor <- parse_hgvs("NM_000546.6:c.612-2A>G")[[1]]
+donor$position$offset_start     # 1
+acceptor$position$offset_start  # -2
+
+# Genomic notation
+genomic <- parse_hgvs("NC_000001.11:g.123456A>G")[[1]]
+genomic$notation  # "g"
+```
+
+`is_valid_hgvs()` performs syntactic and semantic validation of
+HGVS strings, returning `TRUE` when a variant conforms to HGVS
+grammar and is biologically plausible:
+
+```{r validate}
+is_valid_hgvs("NM_000546.6:c.215C>G")  # valid
+is_valid_hgvs("NM_000546.6:c.99999A>G") # invalid position
+is_valid_hgvs("garbage string")        # unparseable
+```
+
+## Format Conversion: HGVS ↔ VCF ↔ SPDI
+
+Variant data moves between systems in different formats. Genomic
+analyses typically use **VCF** (Variant Call Format), NCBI
+databases use **SPDI**, and clinical reports use **HGVS**. `rvarsim`
+provides bidirectional conversion between these formats.
+
+The following chunk demonstrates HGVS-to-VCF and HGVS-to-SPDI
+conversion, then verifies round-trip fidelity:
+
+```{r convert}
+# HGVS to VCF
+vcf <- hgvs_to_vcf("NC_000001.11:g.123456A>G")
+print(vcf)
+
+# VCF back to HGVS
+vcf_row <- data.frame(CHROM = "1", POS = 123456L,
+                      REF = "A", ALT = "G")
+vcf_to_hgvs(vcf_row, "GRCh38")
+
+# SPDI round-trip
+spdi <- hgvs_to_spdi("NC_000001.11:g.123456A>G")
+cat("SPDI:", spdi, "\n")
+spdi_to_hgvs(spdi)
+```
+
+## Variant Extraction from Sequences
+
+When comparing a reference sequence against an observed
+(variant) sequence, `extract_hgvs()` automatically identifies
+substitutions, insertions, and deletions and describes them in
+HGVS notation. It uses pairwise alignment (Needleman-Wunsch
+by default) and returns one HGVS string per detected difference.
+
+This example uses self-contained nucleotide strings to
+demonstrate the function without external data:
+
+```{r extract}
+# Substitution: C → T at position 4
+extract_hgvs("ATGCGT", "ATGCTT", "NM_000546.6", "c", 1)
+
+# Insertion: extra AGA between positions 3 and 4
+extract_hgvs("ATGTAG", "ATGAGATAG", "NM_000546.6", "c", 1)
+
+# Deletion: missing G at position 5
+extract_hgvs("ATGCGT", "ATGCT", "NM_000546.6", "c", 1)
+```
+
+## Normalization
+
+HGVS normalization applies standard rules to produce a canonical
+representation: trimming common prefixes/suffixes from deletion-
+insertion variants, rewriting insertions as duplications where
+applicable, and 3' shifting indels in repetitive regions.
+
+```{r normalize}
+# Identity (substitutions are already canonical)
+normalize_hgvs("NM_000546.6:c.215C>G")
+
+# Common affix trimming (shared prefix/suffix removed from delins)
+normalize_hgvs("NM_000546.6:c.215_217delinsTAG")
+```
+
+## Simulating Variants (requires genome data)
+
+The core innovation of `rvarsim` is exhaustive SNV simulation:
+for every position across CDS, UTR, and splice site regions of
+MANE Select transcripts, all three possible alternative alleles
+are generated and formatted in HGVS notation.
+
+This requires both an EnsDb (transcript annotation) and a BSgenome
+(reference sequence) **with matching seqlevels styles**. For
+example, `EnsDb.Hsapiens.v86` uses UCSC-style chromosome names
+(`chr1`) while `BSgenome.Hsapiens.UCSC.hg38` also uses UCSC style,
+ensuring compatibility.
 
 ```{r simulate, eval=FALSE}
-library(rvarsim)
 library(EnsDb.Hsapiens.v86)
 library(BSgenome.Hsapiens.UCSC.hg38)
 
-# Fetch MANE Select transcripts
+# Step 1: Fetch MANE Select transcripts
 mane <- fetch_mane_txdb(EnsDb.Hsapiens.v86)
-
-# Get transcript structure
+# Step 2: Extract CDS, UTR, splice site structure
 struct <- get_transcript_structure(mane, "ENST00000357654")
-
-# Generate variants
-vars <- generate_variants(struct, BSgenome.Hsapiens.UCSC.hg38)
-
-# Add HGVS notation
-hgvs <- format_hgvs(vars)
-head(hgvs[, c("region", "genomic_ref", "genomic_alt", "hgvs_c")])
+# Step 3: Generate all possible SNVs
+vars <- generate_variants(struct, BSgenome.Hsapiens.UCSC.hg38,
+                           regions = c("cds", "splice_site"))
+# Step 4: Format in HGVS notation
+result <- format_hgvs(vars)
+head(result[, c("region", "genomic_ref",
+                "genomic_alt", "hgvs_c")])
 ```
 
-Or use the all-in-one wrapper:
+The all-in-one `simulate_variants()` wrapper combines these steps
+with progress reporting:
 
 ```{r wrapper, eval=FALSE}
 result <- simulate_variants(
@@ -56,61 +244,96 @@ result <- simulate_variants(
 )
 ```
 
-## HGVS Parsing and Validation
+## Genomic-to-Coding Coordinate Mapping
 
-```{r parse}
-library(rvarsim)
-# Parse HGVS strings into structured objects
-variant <- parse_hgvs("NM_000546.6:c.215C>G")[[1]]
-variant$type        # "substitution"
-variant$reference   # "C"
-variant$alternate   # "G"
-variant$position$start  # 215
-
-# Validate
-is_valid_hgvs("NM_000546.6:c.215C>G")  # TRUE
-is_valid_hgvs("garbage string")        # FALSE
-```
-
-## Format Conversion
-
-```{r convert}
-# HGVS to VCF
-vcf <- hgvs_to_vcf("NC_000001.11:g.123456A>G")
-print(vcf)
-
-# SPDI conversion
-cat(hgvs_to_spdi("NC_000001.11:g.123456A>G"), "\n")
-```
-
-## Transcription Mapping
+Variants are often reported in genomic (`g.`) coordinates but
+interpreted in transcript (`c.`) coordinates. `c_to_g()` and
+`g_to_c()` map between these systems using the exon/CDS structure
+from a TxDb. These functions handle intronic offsets (`c.453+1`),
+UTR positions (`c.-14`, `c.*32`), and strand orientation
+automatically.
 
 ```{r transcribe, eval=FALSE}
-# Coding to genomic
-g_vars <- c_to_g("ENST00000357654:c.215C>G",
-                 EnsDb.Hsapiens.v86,
-                 BSgenome.Hsapiens.UCSC.hg38)
+txdb <- EnsDb.Hsapiens.v86
+bsg  <- BSgenome.Hsapiens.UCSC.hg38
 
-# Genomic to coding
-c_vars <- g_to_c("1:g.7577120C>G",
-                 EnsDb.Hsapiens.v86,
-                 BSgenome.Hsapiens.UCSC.hg38)
+# Coding → Genomic
+c_to_g("ENST00000357654:c.215C>G", txdb, bsg)
+
+# Genomic → Coding
+g_to_c("1:g.7577120C>G", txdb, bsg, "ENST00000357654")
 ```
 
-## Translation
+## Translation and Backtranslation
+
+`translate_hgvs()` infers protein (`p.`) consequences from coding
+variants using the standard genetic code. It detects missense,
+nonsense, silent, frameshift, and inframe indel consequences.
+
+`backtranslate_hgvs()` performs the reverse: given an observed
+protein change (e.g., `p.Arg215Gly`), it enumerates all possible
+coding variants by walking the genetic code's codon mappings.
+This is useful for interpreting proteomics data.
 
 ```{r translate, eval=FALSE}
-translate_hgvs("ENST00000357654:c.215C>G",
-               EnsDb.Hsapiens.v86,
-               BSgenome.Hsapiens.UCSC.hg38)
+txdb <- EnsDb.Hsapiens.v86
+bsg  <- BSgenome.Hsapiens.UCSC.hg38
+
+# Translate a coding variant to protein consequence
+translate_hgvs("ENST00000357654:c.215C>G", txdb, bsg)
+
+# Enumerate coding variants that produce p.Arg215Gly
+backtranslate_hgvs("p.Arg215Gly", txdb, bsg)
 ```
 
-## Variant Extraction
+## Liftover Between Assemblies
 
-```{r extract}
-extract_hgvs("ATGCGTACGTAG", "ATGCATACCTAG",
-             "NM_000546.6", "c", 1)
+`liftover_hgvs()` maps genomic variants between assemblies
+(e.g., hg19 → hg38) using UCSC chain files. `liftover_c_hgvs()`
+performs full c. → g. → liftover → c. conversion in a single
+call, preserving coding notation across assemblies.
+
+```{r liftover, eval=FALSE}
+library(BSgenome.Hsapiens.UCSC.hg38)
+
+# Liftover a genomic variant from hg19 to hg38
+liftover_hgvs("NC_000001.10:g.123456A>G",
+              "hg19ToHg38.over.chain",
+              BSgenome.Hsapiens.UCSC.hg38)
 ```
+
+## Interoperability with Other Bioconductor Packages
+
+The returned data structures are designed to integrate with
+standard Bioconductor workflows. For example, a variant table
+from `simulate_variants()` can be converted to a `GRanges` for
+use with *VariantAnnotation* or overlap analysis:
+
+```{r interoperate}
+# Simulated variant table → GRanges
+vars <- data.frame(
+    transcript_id = "NM_TEST",
+    genomic_pos   = c(215L, 453L),
+    genomic_ref   = c("C", "G"),
+    genomic_alt   = c("G", "T"),
+    stringsAsFactors = FALSE
+)
+formatted <- format_hgvs(vars)
+print(formatted[, c("genomic_pos", "genomic_ref",
+                     "genomic_alt", "hgvs_c")])
+```
+
+## References
+
+1. Morales J, Pujar S, Loveland JE, et al. A joint NCBI and
+   EMBL-EBI transcript set for clinical genomics and research.
+   *Nature*, 2022.
+2. den Dunnen JT, Dalgleish R, Maglott DR, et al. HGVS
+   recommendations for the description of sequence variants:
+   2016 update. *Human Mutation*, 2016; 37(6):564-569.
+3. Holmes JB, Moyer E, Phan L, et al. SPDI: data model for
+   variants and applications at NCBI. *Bioinformatics*, 2020;
+   36(6):1902-1907.
 
 ## Session Information
 

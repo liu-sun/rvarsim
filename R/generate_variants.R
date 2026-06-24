@@ -35,7 +35,6 @@
 #'
 #' @importFrom BSgenome getSeq
 #' @importFrom GenomeInfoDb seqnames seqinfo
-#' @importFrom GenomicRanges start end strand
 #' @importFrom IRanges width
 #' @export
 #'
@@ -51,11 +50,6 @@ generate_variants <- function(tx_struct, bsgenome,
 
     valid_regions <- c("cds", "five_utr", "three_utr", "splice_site")
     regions <- match.arg(regions, valid_regions, several.ok = TRUE)
-
-    if (!requireNamespace("BSgenome", quietly = TRUE)) {
-        stop("BSgenome is required. ",
-             "Install with BiocManager::install('BSgenome').")
-    }
 
     all_variants <- vector("list", 0)
 

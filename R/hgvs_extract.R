@@ -229,7 +229,7 @@ extract_hgvs <- function(ref_seq, obs_seq, accession,
             # In HGVS c. notation, insertions are between positions
             if (notation == "c") {
                 variants <- c(variants,
-                              sprintf("%s:%s.%d_%dins%s",
+                              sprintf("%s:c.%d_%dins%s",
                                       accession,
                                       ref_pos - 1, ref_pos, ins_seq))
             } else {

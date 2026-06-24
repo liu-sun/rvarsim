@@ -207,22 +207,13 @@ backtranslate_hgvs <- function(hgvs_p, txdb, bsgenome,
         nchar(ref_cds) == 0) return(character(0))
     ref_protein <- .translate_sequence(ref_cds, genetic_code)
 
-    variants <- switch(
+    fun <- switch(
         protein_var$type,
-        missense = .enumerate_missense(protein_var, ref_cds,
-                                        ref_protein, genetic_code,
-                                        tx_id),
-        nonsense = .enumerate_nonsense(protein_var, ref_cds,
-                                        ref_protein, genetic_code,
-                                        tx_id),
-        frameshift = character(0),  # Too many possibilities
-        deletion = character(0),
-        insertion = character(0),
-        silent = character(0),
-        character(0)
+        missense  = .enumerate_missense,
+        nonsense  = .enumerate_nonsense,
+        function(...) character(0)
     )
-
-    variants
+    fun(protein_var, ref_cds, ref_protein, genetic_code, tx_id)
 }
 
 

@@ -4,12 +4,10 @@
 ## usethis namespace: start
 #' @importFrom BiocGenerics start end strand
 #' @importFrom Biostrings getSeq
-#' @importFrom ensembldb EnsDb transcripts TxidFilter filter listColumns
+#' @importFrom ensembldb EnsDb transcripts TxIdFilter filter listColumns
 #' @importFrom GenomeInfoDb seqnames seqlevelsStyle seqlevels
 #' @importFrom GenomicFeatures cdsBy fiveUTRsByTranscript threeUTRsByTranscript
 #' @importFrom GenomicFeatures exonsBy transcripts isActiveSeq
-#' @importFrom GenomicRanges GRanges GRangesList reduce start end strand
-#' @importFrom GenomicRanges width resize flank
 #' @importFrom IRanges IRanges subsetByOverlaps overlapsAny width
 #' @importFrom S4Vectors mcols metadata
 ## usethis namespace: end

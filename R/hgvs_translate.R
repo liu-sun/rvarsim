@@ -94,25 +94,16 @@ translate_hgvs <- function(hgvs_strings, txdb, bsgenome,
                                # splicing but not direct translation
     }
 
-    switch(
+    fun <- switch(
         parsed$type,
-        substitution = .translate_substitution(parsed, ref_cds,
-                                                ref_protein, cds_pos,
-                                                genetic_code),
-        deletion     = .translate_deletion(parsed, ref_cds,
-                                            ref_protein, cds_pos,
-                                            genetic_code),
-        insertion    = .translate_insertion(parsed, ref_cds,
-                                             ref_protein, cds_pos,
-                                             genetic_code),
-        duplication  = .translate_duplication(parsed, ref_cds,
-                                               ref_protein, cds_pos,
-                                               genetic_code),
-        delins       = .translate_delins(parsed, ref_cds,
-                                          ref_protein, cds_pos,
-                                          genetic_code),
-        NA_character_
+        substitution = .translate_substitution,
+        deletion     = .translate_deletion,
+        insertion    = .translate_insertion,
+        duplication  = .translate_duplication,
+        delins       = .translate_delins,
+        function(...) NA_character_
     )
+    fun(parsed, ref_cds, ref_protein, cds_pos, genetic_code)
 }
 
 
